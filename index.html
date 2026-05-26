@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>타임 플래너</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); min-height: 100vh; color: #fff; }
+.container { max-width: 520px; margin: 0 auto; padding: 16px; }
+h1 { text-align: center; font-size: 1.7em; margin: 16px 0 4px; }
+.subtitle { text-align: center; color: #aaa; margin-bottom: 20px; font-size: 0.85em; }
+
+.page-nav { display: flex; margin-bottom: 16px; background: rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; }
+.page-btn { flex: 1; padding: 11px; border: none; background: transparent; color: #aaa; font-size: 0.9em; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+.page-btn.active { background: #6c5ce7; color: #fff; }
+
+.calendar-section { display: none; }
+.calendar-section.visible { display: block; }
+.cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.cal-header button { background: rgba(255,255,255,0.12); border: none; color: #fff; width: 36px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 1.1em; }
+.cal-header button:hover { background: rgba(255,255,255,0.2); }
+.cal-title { font-size: 1.1em; font-weight: 700; }
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; margin-bottom: 16px; }
+.cal-day-label { text-align: center; font-size: 0.75em; color: #888; padding: 6px 0; }
+.cal-day { text-align: center; padding: 8px 0; border-radius: 10px; cursor: pointer; font-size: 0.85em; position: relative; transition: all 0.2s; min-height: 38px; }
+.cal-day:hover { background: rgba(255,255,255,0.12); }
+.cal-day.other { color: #555; }
+.cal-day.today { border: 2px solid #6c5ce7; }
+.cal-day.selected { background: #6c5ce7; color: #fff; }
+.cal-day .dot-row { display: flex; justify-content: center; gap: 2px; margin-top: 2px; height: 6px; }
+.cal-day .task-dot { width: 5px; height: 5px; border-radius: 50%; }
+.dot-urgent { background: #ff7675; }
+.dot-high { background: #fdcb6e; }
+.dot-medium { background: #74b9ff; }
+.dot-low { background: rgba(255,255,255,0.4); }
+.dot-done { background: #55efc4; }
+.cal-selected-date { font-size: 0.9em; color: #aaa; margin-bottom: 12px; text-align: center; }
+
+.today-section { display: none; }
+.today-section.visible { display: block; }
+
+.progress-section { background: rgba(255,255,255,0.08); border-radius: 16px; padding: 18px; margin-bottom: 16px; }
+.progress-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95em; }
+.progress-bar-bg { background: rgba(255,255,255,0.1); border-radius: 10px; height: 10px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, #6c5ce7, #a29bfe); border-radius: 10px; transition: width 0.5s; width: 0%; }
+.stats { display: flex; justify-content: space-around; margin-top: 10px; font-size: 0.8em; color: #aaa; }
+
+.tab-bar { display: flex; margin-bottom: 16px; background: rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; }
+.tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: #aaa; font-size: 0.9em; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+.tab-btn.active { background: #6c5ce7; color: #fff; }
+
+.timer-section { background: rgba(255,255,255,0.08); border-radius: 16px; padding: 22px; margin-bottom: 16px; text-align: center; display: none; }
+.timer-section.visible { display: block; }
+.timer-display { font-size: 3.2em; font-weight: 700; font-variant-numeric: tabular-nums; margin: 8px 0; }
+.timer-label { font-size: 0.85em; color: #aaa; margin-bottom: 12px; }
+.timer-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.timer-buttons button { padding: 9px 22px; border: none; border-radius: 10px; font-size: 0.95em; cursor: pointer; font-weight: 600; }
+.btn-start { background: #6c5ce7; color: #fff; }
+.btn-start:hover { background: #5a4bd1; }
+.btn-reset { background: rgba(255,255,255,0.15); color: #fff; }
+.timer-phase-work { color: #ff7675; }
+.timer-phase-break { color: #55efc4; }
+.timer-phase-long { color: #fdcb6e; }
+
+.pomo-cycles { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+.pomo-dot { width: 13px; height: 13px; border-radius: 50%; background: rgba(255,255,255,0.15); transition: all 0.3s; }
+.pomo-dot.filled { background: #ff7675; }
+.pomo-dot.current { box-shadow: 0 0 8px #ff7675; border: 2px solid #fff; }
+.pomo-cycle-label { font-size: 0.78em; color: #888; margin-bottom: 6px; }
+
+.custom-timer-setup { display: flex; gap: 6px; justify-content: center; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.custom-timer-setup input { width: 55px; padding: 9px; border-radius: 10px; border: none; background: rgba(255,255,255,0.12); color: #fff; font-size: 1em; text-align: center; outline: none; }
+.custom-timer-setup input::placeholder { color: #666; }
+.custom-timer-setup span { color: #aaa; font-size: 0.8em; }
+.custom-timer-name { width: 160px !important; font-size: 0.85em !important; }
+.preset-buttons { display: flex; gap: 6px; justify-content: center; margin-bottom: 12px; flex-wrap: wrap; }
+.preset-btn { padding: 7px 12px; border-radius: 10px; border: none; background: rgba(255,255,255,0.1); color: #ccc; cursor: pointer; font-size: 0.78em; }
+.preset-btn:hover { background: rgba(255,255,255,0.2); }
+
+.input-section { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.input-section input { flex: 1; min-width: 140px; padding: 11px 14px; border-radius: 12px; border: none; background: rgba(255,255,255,0.1); color: #fff; font-size: 0.95em; outline: none; }
+.input-section input::placeholder { color: #888; }
+.input-section select { padding: 11px; border-radius: 12px; border: none; background: rgba(255,255,255,0.15); color: #fff; font-size: 0.85em; outline: none; }
+.input-section select option { background: #2d3436; }
+.btn-add { padding: 11px 18px; border-radius: 12px; border: none; background: #6c5ce7; color: #fff; font-size: 0.95em; cursor: pointer; font-weight: 600; }
+
+.filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.filter-btn { padding: 5px 12px; border-radius: 8px; border: none; background: rgba(255,255,255,0.1); color: #aaa; cursor: pointer; font-size: 0.8em; }
+.filter-btn.active { background: #6c5ce7; color: #fff; }
+
+.task-list { list-style: none; }
+.task-item { display: flex; align-items: center; gap: 9px; background: rgba(255,255,255,0.07); border-radius: 12px; padding: 12px 12px; margin-bottom: 8px; transition: all 0.3s; }
+.task-item:hover { background: rgba(255,255,255,0.12); }
+.task-item.done { opacity: 0.5; }
+.task-item.done .task-name { text-decoration: line-through; }
+.task-item.linked { border-left: 3px solid #6c5ce7; }
+.task-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #6c5ce7; background: transparent; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+.task-check.checked { background: #6c5ce7; }
+.task-name { flex: 1; font-size: 0.9em; }
+.priority-badge { font-size: 0.68em; padding: 3px 7px; border-radius: 6px; font-weight: 600; flex-shrink: 0; }
+.p-urgent { background: #ff7675; color: #fff; }
+.p-high { background: #fdcb6e; color: #2d3436; }
+.p-medium { background: #74b9ff; color: #2d3436; }
+.p-low { background: rgba(255,255,255,0.2); color: #ddd; }
+.task-btns { display: flex; gap: 4px; flex-shrink: 0; }
+.task-timer-btn { background: none; border: none; font-size: 1em; cursor: pointer; opacity: 0.7; }
+.task-timer-btn:hover { opacity: 1; }
+.task-timer-btn.active-timer { opacity: 1; filter: drop-shadow(0 0 4px #6c5ce7); }
+.task-delete { background: none; border: none; color: #ff7675; font-size: 1em; cursor: pointer; flex-shrink: 0; opacity: 0.6; }
+.task-delete:hover { opacity: 1; }
+.empty-msg { text-align: center; color: #888; padding: 30px; font-size: 0.9em; }
+
+.notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #6c5ce7; padding: 12px 24px; border-radius: 12px; font-weight: 600; display: none; z-index: 999; animation: slideDown 0.3s; box-shadow: 0 8px 30px rgba(108,92,231,0.4); font-size: 0.95em; }
+@keyframes slideDown { from { opacity: 0; top: 0; } to { opacity: 1; top: 20px; } }
+
+.month-stats { background: rgba(255,255,255,0.08); border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+.month-stats-title { font-size: 0.85em; color: #aaa; margin-bottom: 10px; }
+.month-stats-row { display: flex; justify-content: space-around; font-size: 0.8em; color: #ccc; }
+.month-stats-row b { font-size: 1.3em; display: block; margin-top: 2px; }
+
+/* Linked task indicator on timer */
+.linked-task-badge { background: rgba(108,92,231,0.3); border: 1px solid #6c5ce7; border-radius: 10px; padding: 8px 14px; margin-bottom: 14px; font-size: 0.85em; display: none; }
+.linked-task-badge.show { display: block; }
+.linked-task-badge span { color: #a29bfe; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>타임 플래너</h1>
+  <p class="subtitle">캘린더 + 포모도로 + 타이머로 매일매일 완벽하게!</p>
+
+  <div class="page-nav">
+    <button class="page-btn active" id="navToday" onclick="showPage('today')">📋 오늘</button>
+    <button class="page-btn" id="navCal" onclick="showPage('calendar')">📅 캘린더</button>
+    <button class="page-btn" id="navTimer" onclick="showPage('timer')">⏱ 타이머</button>
+  </div>
+
+  <!-- TODAY -->
+  <div class="today-section visible" id="todayPage">
+    <div class="progress-section">
+      <div class="progress-header"><span>오늘의 진행률</span><span id="progressPct">0%</span></div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+      <div class="stats">
+        <span>📋 전체 <b id="totalCount">0</b></span>
+        <span>✅ 완료 <b id="doneCount">0</b></span>
+        <span>⏳ 남은 <b id="leftCount">0</b></span>
+      </div>
+    </div>
+    <div class="input-section">
+      <input type="text" id="taskInput" placeholder="할 일을 입력하세요..." onkeydown="if(event.key==='Enter')addTask(todayKey(),'taskInput','prioritySelect')">
+      <select id="prioritySelect">
+        <option value="urgent">🔴 긴급</option><option value="high">🟡 높음</option><option value="medium" selected>🔵 중간</option><option value="low">⚪ 낮음</option>
+      </select>
+      <button class="btn-add" onclick="addTask(todayKey(),'taskInput','prioritySelect')">추가</button>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="setFilter('all',this)">전체</button>
+      <button class="filter-btn" onclick="setFilter('active',this)">진행중</button>
+      <button class="filter-btn" onclick="setFilter('done',this)">완료</button>
+    </div>
+    <ul class="task-list" id="taskList"></ul>
+  </div>
+
+  <!-- CALENDAR -->
+  <div class="calendar-section" id="calPage">
+    <div class="cal-header">
+      <button onclick="calNav(-1)">◀</button>
+      <span class="cal-title" id="calTitle"></span>
+      <button onclick="calNav(1)">▶</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="month-stats">
+      <div class="month-stats-title">📊 이번 달 통계</div>
+      <div class="month-stats-row">
+        <span>전체<b id="mTotal">0</b></span>
+        <span>완료<b id="mDone">0</b></span>
+        <span>완료율<b id="mRate">0%</b></span>
+      </div>
+    </div>
+    <div class="cal-selected-date" id="calDateLabel"></div>
+    <div class="input-section">
+      <input type="text" id="calTaskInput" placeholder="이 날의 할 일 추가..." onkeydown="if(event.key==='Enter')addTask(calSelectedDate,'calTaskInput','calPrioritySelect')">
+      <select id="calPrioritySelect">
+        <option value="urgent">🔴 긴급</option><option value="high">🟡 높음</option><option value="medium" selected>🔵 중간</option><option value="low">⚪ 낮음</option>
+      </select>
+      <button class="btn-add" onclick="addTask(calSelectedDate,'calTaskInput','calPrioritySelect')">추가</button>
+    </div>
+    <ul class="task-list" id="calTaskList"></ul>
+  </div>
+
+  <!-- TIMER -->
+  <div class="today-section" id="timerPage">
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabPomo" onclick="switchTimerTab('pomo',this)">🍅 포모도로</button>
+      <button class="tab-btn" id="tabCustom" onclick="switchTimerTab('custom',this)">⏰ 일반 타이머</button>
+    </div>
+    <div class="timer-section visible" id="pomoSection">
+      <div class="linked-task-badge" id="pomoLinked">📌 연결된 작업: <span id="pomoLinkedName"></span></div>
+      <div class="timer-label" id="pomoLabel">타이머를 시작하세요</div>
+      <div class="pomo-cycle-label" id="pomoCycleLabel">사이클 1/4</div>
+      <div class="pomo-cycles" id="pomoDots"></div>
+      <div class="timer-display" id="pomoDisplay">25:00</div>
+      <div class="timer-buttons">
+        <button class="btn-start" id="pomoStartBtn" onclick="pomoToggle()">▶ 시작</button>
+        <button class="btn-reset" onclick="pomoReset()">↺ 리셋</button>
+      </div>
+    </div>
+    <div class="timer-section" id="customSection">
+      <div class="linked-task-badge" id="customLinked">📌 연결된 작업: <span id="customLinkedName"></span></div>
+      <div class="timer-label" id="customLabel">시간을 설정하고 시작하세요</div>
+      <div class="custom-timer-setup" id="customSetup">
+        <input type="text" class="custom-timer-name" id="customName" placeholder="예: 빨래, 라면">
+        <input type="number" id="customHr" placeholder="0" min="0" max="23">
+        <span>시간</span>
+        <input type="number" id="customMin" placeholder="30" min="0" max="59">
+        <span>분</span>
+        <input type="number" id="customSec" placeholder="0" min="0" max="59">
+        <span>초</span>
+      </div>
+      <div class="preset-buttons" id="presetBtns">
+        <button class="preset-btn" onclick="setPreset('빨래',1,0,0)">🧺 빨래 1시간</button>
+        <button class="preset-btn" onclick="setPreset('라면',0,3,0)">🍜 라면 3분</button>
+        <button class="preset-btn" onclick="setPreset('계란',0,10,0)">🥚 계란 10분</button>
+        <button class="preset-btn" onclick="setPreset('휴식',0,15,0)">☕ 휴식 15분</button>
+        <button class="preset-btn" onclick="setPreset('운동',0,30,0)">💪 운동 30분</button>
+      </div>
+      <div class="timer-display" id="customDisplay">00:00</div>
+      <div class="timer-buttons">
+        <button class="btn-start" id="customStartBtn" onclick="customToggle()">▶ 시작</button>
+        <button class="btn-reset" onclick="customReset()">↺ 리셋</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="notification" id="notification"></div>
+
+<script>
+const WORK=25,BREAK=5,LONG_BREAK=30,CYCLES=4;
+let allTasks=JSON.parse(localStorage.getItem('allTasks')||'{}');
+let filter='all',currentPage='today',currentTimerTab='pomo';
+const pOrder={urgent:0,high:1,medium:2,low:3},pLabels={urgent:'긴급',high:'높음',medium:'중간',low:'낮음'};
+
+// Linked task tracking: {dateKey, taskId}
+let pomoLinkedTask=null, customLinkedTask=null;
+
+function todayKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function dateKey(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0')}
+function getTasksFor(key){return allTasks[key]||[]}
+function setTasksFor(key,arr){if(arr.length)allTasks[key]=arr;else delete allTasks[key];localStorage.setItem('allTasks',JSON.stringify(allTasks))}
+function notify(msg){const n=document.getElementById('notification');n.textContent=msg;n.style.display='block';setTimeout(()=>n.style.display='none',3000)}
+function findLinkedTask(link){if(!link)return null;const arr=getTasksFor(link.dateKey);return arr.find(t=>t.id===link.taskId)||null}
+
+// Migrate old
+(function(){const old=localStorage.getItem('tasks');if(old){const arr=JSON.parse(old);if(arr.length){const k=todayKey();allTasks[k]=(allTasks[k]||[]).concat(arr);localStorage.setItem('allTasks',JSON.stringify(allTasks));localStorage.removeItem('tasks')}}})();
+
+// === Page Nav ===
+function showPage(page){
+  currentPage=page;
+  document.querySelectorAll('.page-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(page==='today'?'navToday':page==='calendar'?'navCal':'navTimer').classList.add('active');
+  document.getElementById('todayPage').classList.toggle('visible',page==='today');
+  document.getElementById('calPage').classList.toggle('visible',page==='calendar');
+  document.getElementById('timerPage').classList.toggle('visible',page==='timer');
+  if(page==='today')renderToday();
+  if(page==='calendar')renderCal();
+}
+
+// === Task CRUD ===
+function addTask(dateKey,inputId,selectId){
+  const input=document.getElementById(inputId),name=input.value.trim();
+  if(!name)return;
+  const arr=getTasksFor(dateKey);
+  arr.push({id:Date.now(),name,priority:document.getElementById(selectId).value,done:false});
+  setTasksFor(dateKey,arr);input.value='';
+  if(currentPage==='today')renderToday();else{renderCal();renderCalTasks()}
+}
+function toggleDone(key,id){
+  const arr=getTasksFor(key),t=arr.find(t=>t.id===id);
+  if(t){t.done=!t.done;setTasksFor(key,arr);if(currentPage==='today')renderToday();else{renderCal();renderCalTasks()}if(t.done)notify('✅ 완료! 잘했어요!')}
+}
+function deleteTask(key,id){
+  let arr=getTasksFor(key).filter(t=>t.id!==id);setTasksFor(key,arr);
+  if(pomoLinkedTask&&pomoLinkedTask.dateKey===key&&pomoLinkedTask.taskId===id){pomoLinkedTask=null;updatePomoLinkedBadge()}
+  if(customLinkedTask&&customLinkedTask.dateKey===key&&customLinkedTask.taskId===id){customLinkedTask=null;updateCustomLinkedBadge()}
+  if(currentPage==='today')renderToday();else{renderCal();renderCalTasks()}
+}
+function setFilter(f,btn){filter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderToday()}
+
+// === Link to Timer ===
+function linkToPomo(dateKey,taskId){
+  const t=getTasksFor(dateKey).find(t=>t.id===taskId);if(!t)return;
+  pomoLinkedTask={dateKey,taskId};
+  pomoReset();updatePomoLinkedBadge();
+  showPage('timer');switchTimerTab('pomo',document.getElementById('tabPomo'));
+  notify('🍅 "'+t.name+'" → 포모도로 연결!');
+}
+function linkToCustom(dateKey,taskId){
+  const t=getTasksFor(dateKey).find(t=>t.id===taskId);if(!t)return;
+  customLinkedTask={dateKey,taskId};
+  customReset();document.getElementById('customName').value=t.name;
+  updateCustomLinkedBadge();
+  showPage('timer');switchTimerTab('custom',document.getElementById('tabCustom'));
+  notify('⏰ "'+t.name+'" → 타이머 연결!');
+}
+function updatePomoLinkedBadge(){
+  const el=document.getElementById('pomoLinked'),nm=document.getElementById('pomoLinkedName');
+  const t=findLinkedTask(pomoLinkedTask);
+  if(t){el.classList.add('show');nm.textContent=t.name}else{el.classList.remove('show');pomoLinkedTask=null}
+}
+function updateCustomLinkedBadge(){
+  const el=document.getElementById('customLinked'),nm=document.getElementById('customLinkedName');
+  const t=findLinkedTask(customLinkedTask);
+  if(t){el.classList.add('show');nm.textContent=t.name}else{el.classList.remove('show');customLinkedTask=null}
+}
+
+// === Render task list (shared) ===
+function renderTaskList(dateKey,listId){
+  const tasks=getTasksFor(dateKey);
+  const sorted=[...tasks].sort((a,b)=>a.done-b.done||pOrder[a.priority]-pOrder[b.priority]);
+  const filtered=currentPage==='today'?sorted.filter(t=>filter==='all'||(filter==='done'?t.done:!t.done)):sorted;
+  const list=document.getElementById(listId);
+  if(filtered.length===0){list.innerHTML='<div class="empty-msg">'+(tasks.length===0?'📝 할 일을 추가해보세요!':'필터에 해당하는 작업이 없습니다')+'</div>';return}
+  const isPomo=l=>pomoLinkedTask&&pomoLinkedTask.dateKey===dateKey&&pomoLinkedTask.taskId===l;
+  const isCust=l=>customLinkedTask&&customLinkedTask.dateKey===dateKey&&customLinkedTask.taskId===l;
+  list.innerHTML=filtered.map(t=>{
+    const linked=isPomo(t.id)||isCust(t.id);
+    return `<li class="task-item ${t.done?'done':''} ${linked?'linked':''}">
+      <button class="task-check ${t.done?'checked':''}" onclick="toggleDone('${dateKey}',${t.id})">${t.done?'✓':''}</button>
+      <span class="task-name">${t.name}</span>
+      <span class="priority-badge p-${t.priority}">${pLabels[t.priority]}</span>
+      <div class="task-btns">
+        <button class="task-timer-btn ${isPomo(t.id)?'active-timer':''}" onclick="linkToPomo('${dateKey}',${t.id})" title="포모도로 연결">🍅</button>
+        <button class="task-timer-btn ${isCust(t.id)?'active-timer':''}" onclick="linkToCustom('${dateKey}',${t.id})" title="일반 타이머 연결">⏰</button>
+      </div>
+      <button class="task-delete" onclick="deleteTask('${dateKey}',${t.id})">✕</button>
+    </li>`}).join('');
+}
+
+function renderToday(){
+  const k=todayKey();renderTaskList(k,'taskList');
+  const tasks=getTasksFor(k),total=tasks.length,done=tasks.filter(t=>t.done).length,pct=total?Math.round(done/total*100):0;
+  document.getElementById('progressPct').textContent=pct+'%';document.getElementById('progressBar').style.width=pct+'%';
+  document.getElementById('totalCount').textContent=total;document.getElementById('doneCount').textContent=done;document.getElementById('leftCount').textContent=total-done;
+}
+
+// === CALENDAR ===
+let calYear,calMonth,calSelectedDate;
+(function(){const d=new Date();calYear=d.getFullYear();calMonth=d.getMonth();calSelectedDate=todayKey()})();
+function calNav(dir){calMonth+=dir;if(calMonth<0){calMonth=11;calYear--}if(calMonth>11){calMonth=0;calYear++}renderCal()}
+
+function renderCal(){
+  document.getElementById('calTitle').textContent=calYear+'년 '+(calMonth+1)+'월';
+  const grid=document.getElementById('calGrid');grid.innerHTML='';
+  ['일','월','화','수','목','금','토'].forEach(d=>{const el=document.createElement('div');el.className='cal-day-label';el.textContent=d;grid.appendChild(el)});
+  const firstDay=new Date(calYear,calMonth,1).getDay(),daysInMonth=new Date(calYear,calMonth+1,0).getDate(),prevDays=new Date(calYear,calMonth,0).getDate(),tk=todayKey();
+  let mTotal=0,mDone=0;
+  for(let d=1;d<=daysInMonth;d++){const key=dateKey(calYear,calMonth,d),arr=getTasksFor(key);mTotal+=arr.length;mDone+=arr.filter(t=>t.done).length}
+  document.getElementById('mTotal').textContent=mTotal;document.getElementById('mDone').textContent=mDone;document.getElementById('mRate').textContent=mTotal?Math.round(mDone/mTotal*100)+'%':'0%';
+  for(let i=firstDay-1;i>=0;i--){const el=document.createElement('div');el.className='cal-day other';el.textContent=prevDays-i;grid.appendChild(el)}
+  for(let d=1;d<=daysInMonth;d++){
+    const el=document.createElement('div'),key=dateKey(calYear,calMonth,d);
+    el.className='cal-day'+(key===tk?' today':'')+(key===calSelectedDate?' selected':'');
+    el.textContent=d;
+    const tasks=getTasksFor(key);
+    if(tasks.length){const dr=document.createElement('div');dr.className='dot-row';tasks.slice(0,4).forEach(t=>{const dot=document.createElement('div');dot.className='task-dot '+(t.done?'dot-done':'dot-'+t.priority);dr.appendChild(dot)});el.appendChild(dr)}
+    el.onclick=()=>{calSelectedDate=key;renderCal();renderCalTasks()};grid.appendChild(el);
+  }
+  const totalCells=firstDay+daysInMonth,rem=totalCells%7?7-totalCells%7:0;
+  for(let i=1;i<=rem;i++){const el=document.createElement('div');el.className='cal-day other';el.textContent=i;grid.appendChild(el)}
+  renderCalTasks();
+}
+function renderCalTasks(){
+  const p=calSelectedDate.split('-');
+  document.getElementById('calDateLabel').textContent=parseInt(p[0])+'년 '+parseInt(p[1])+'월 '+parseInt(p[2])+'일';
+  renderTaskList(calSelectedDate,'calTaskList');
+}
+
+// === TIMER ===
+function switchTimerTab(tab,btn){currentTimerTab=tab;document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');document.getElementById('pomoSection').classList.toggle('visible',tab==='pomo');document.getElementById('customSection').classList.toggle('visible',tab==='custom')}
+
+// Pomodoro
+let pomoInterval=null,pomoSec=WORK*60,pomoRunning=false,pomoPhase='idle',pomoCycle=1;
+function updatePomoDots(){const dots=document.getElementById('pomoDots');dots.innerHTML='';for(let i=1;i<=CYCLES;i++){const d=document.createElement('div');d.className='pomo-dot'+(i<pomoCycle?' filled':'')+(i===pomoCycle?' current':'');dots.appendChild(d)}const l=document.getElementById('pomoCycleLabel');if(pomoPhase==='longbreak')l.textContent='🎉 4사이클 완료! 긴 휴식 중';else l.textContent='사이클 '+pomoCycle+'/'+CYCLES+(pomoPhase==='break'?' (휴식)':pomoPhase==='work'?' (작업)':'')}
+function updatePomoLabel(){const el=document.getElementById('pomoLabel'),t=findLinkedTask(pomoLinkedTask),name=t?' — '+t.name:'';if(pomoPhase==='work')el.textContent='🔥 집중 중'+name;else if(pomoPhase==='break')el.textContent='☕ 짧은 휴식'+name;else if(pomoPhase==='longbreak')el.textContent='🌴 긴 휴식 (30분)'+name;else el.textContent='타이머를 시작하세요'}
+function updatePomoDisplay(){const m=String(Math.floor(pomoSec/60)).padStart(2,'0'),s=String(pomoSec%60).padStart(2,'0'),el=document.getElementById('pomoDisplay');el.textContent=m+':'+s;el.className='timer-display '+(pomoPhase==='work'?'timer-phase-work':pomoPhase==='longbreak'?'timer-phase-long':'timer-phase-break')}
+function pomoToggle(){if(pomoRunning){clearInterval(pomoInterval);pomoRunning=false;document.getElementById('pomoStartBtn').textContent='▶ 시작';return}pomoRunning=true;document.getElementById('pomoStartBtn').textContent='⏸ 일시정지';if(pomoPhase==='idle'){pomoPhase='work';updatePomoLabel();updatePomoDots()}pomoInterval=setInterval(()=>{pomoSec--;updatePomoDisplay();if(pomoSec<=0){clearInterval(pomoInterval);pomoRunning=false;document.getElementById('pomoStartBtn').textContent='▶ 시작';playAlarm();if(pomoPhase==='work'){if(pomoCycle>=CYCLES){pomoPhase='longbreak';pomoSec=LONG_BREAK*60;notify('🎉 4사이클 완료! 30분 긴 휴식!')}else{pomoPhase='break';pomoSec=BREAK*60;notify('⏰ '+pomoCycle+'번째 작업 완료! 5분 휴식')}}else if(pomoPhase==='break'){pomoCycle++;pomoPhase='work';pomoSec=WORK*60;notify('💪 휴식 끝! '+pomoCycle+'번째 사이클 시작!')}else if(pomoPhase==='longbreak'){pomoCycle=1;pomoPhase='work';pomoSec=WORK*60;notify('🔄 새로운 포모도로 시작!')}updatePomoDisplay();updatePomoLabel();updatePomoDots()}},1000)}
+function pomoReset(){clearInterval(pomoInterval);pomoRunning=false;pomoPhase='idle';pomoCycle=1;pomoSec=WORK*60;updatePomoDisplay();updatePomoLabel();updatePomoDots();document.getElementById('pomoStartBtn').textContent='▶ 시작'}
+
+// Custom
+let customInterval=null,customSec=0,customRunning=false,customTimerName='';
+function setPreset(name,h,m,s){document.getElementById('customName').value=name;document.getElementById('customHr').value=h;document.getElementById('customMin').value=m;document.getElementById('customSec').value=s}
+function customToggle(){if(customRunning){clearInterval(customInterval);customRunning=false;document.getElementById('customStartBtn').textContent='▶ 시작';return}if(customSec<=0){const h=parseInt(document.getElementById('customHr').value)||0,m=parseInt(document.getElementById('customMin').value)||0,s=parseInt(document.getElementById('customSec').value)||0;customSec=h*3600+m*60+s;customTimerName=document.getElementById('customName').value.trim()||'타이머';if(customSec<=0){notify('⚠️ 시간을 설정해주세요!');return}}customRunning=true;document.getElementById('customStartBtn').textContent='⏸ 일시정지';document.getElementById('customSetup').style.opacity='0.4';document.getElementById('presetBtns').style.opacity='0.4';const t=findLinkedTask(customLinkedTask);document.getElementById('customLabel').textContent='⏳ '+(t?t.name:customTimerName)+' 진행 중...';customInterval=setInterval(()=>{customSec--;updateCustomDisplay();if(customSec<=0){clearInterval(customInterval);customRunning=false;const t2=findLinkedTask(customLinkedTask);notify('🔔 '+(t2?t2.name:customTimerName)+' 완료!');playAlarm();document.getElementById('customStartBtn').textContent='▶ 시작';document.getElementById('customLabel').textContent='✅ '+(t2?t2.name:customTimerName)+' 완료!';document.getElementById('customSetup').style.opacity='1';document.getElementById('presetBtns').style.opacity='1'}},1000)}
+function customReset(){clearInterval(customInterval);customRunning=false;customSec=0;updateCustomDisplay();document.getElementById('customStartBtn').textContent='▶ 시작';document.getElementById('customLabel').textContent='시간을 설정하고 시작하세요';document.getElementById('customSetup').style.opacity='1';document.getElementById('presetBtns').style.opacity='1'}
+function updateCustomDisplay(){const h=Math.floor(customSec/3600),m=Math.floor((customSec%3600)/60),s=customSec%60,el=document.getElementById('customDisplay');el.textContent=(h>0?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');el.className='timer-display'+(customSec<=10&&customSec>0?' timer-phase-work':'')}
+
+function playAlarm(){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();[0,200,400,600].forEach(d=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=d<400?880:660;g.gain.value=0.3;o.start(ctx.currentTime+d/1000);o.stop(ctx.currentTime+d/1000+0.15)})}catch(e){}}
+
+renderToday();updatePomoDisplay();updatePomoDots();updateCustomDisplay();updatePomoLinkedBadge();updateCustomLinkedBadge();
+</script>
+</body>
+</html>
